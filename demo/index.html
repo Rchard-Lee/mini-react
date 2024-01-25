@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <div id="root">
+    <div id="box">
+      <button id="btn1">执行计算任务</button>
+      <button id="btn2">更改背景颜色</button>
+    </div>
+  </div>
+  <script>
+    // let box = document.getElementById('box')
+    // let btn1 = document.getElementById('btn1')
+    // let btn2 = document.getElementById('btn2')
+    // let num = 99999
+    // let value = 0
+    // function calc(deadline) {
+    //   while(num > 0 && deadline.timeRemaining() > 0) {
+    //     value = Math.random() < 0.5 ? Math.random() : Math.random()
+    //     console.log('time',deadline.timeRemaining());
+    //     console.log('num',num);
+    //     num--
+    //   }
+    //   console.log('------stop');
+    //   不会继续上一次，而是新开一个
+    //   requestIdleCallback(calc)
+    // }
+
+    // btn1.onclick = function() {
+    //   requestIdleCallback(calc)
+    // }
+
+    // btn2.onclick = function() {
+    //   box.style.background = 'green'
+    // }
+    let taskId = 1
+    function workLoop(deadline) {
+      taskId++ 
+      let shouldYield = false
+      while(!shouldYield) {
+        console.log(`taskId:${taskId} run`)
+        shouldYield = deadline.timeRemaining() < 1
+      }
+      // 不会继续上一次，而是新开一个
+      requestIdleCallback(workLoop)
+    }
+    requestIdleCallback(workLoop)
+  </script>
+</body>
+</html>
