@@ -60,6 +60,8 @@ function initChildren(fiber) {
   });
 }
 
+// 第一个执行的任务
+let root = null;
 // 将要执行的任务
 let nextWorkOfUnit = null;
 
@@ -70,6 +72,8 @@ function render(el, container) {
       children: [el],
     },
   };
+
+  root = nextWorkOfUnit;
 }
 
 // 实现任务调度器
@@ -80,16 +84,33 @@ function workLoop(deadline) {
 
     shouldYield = deadline.timeRemaining() < 1;
   }
+
+  // 如果下一个任务已经不存在了，说明已经执行完毕，可以批量渲染 且 只渲染一次（渲染完成之后root为null了）
+  if (!nextWorkOfUnit && root) {
+    commitRoot();
+  }
+
   // 不会继续上一次，而是新开一个
   requestIdleCallback(workLoop);
+}
+
+function commitRoot() {
+  commitWork(root.child);
+  root = null;
+}
+
+function commitWork(fiber) {
+  if (!fiber) return;
+  // 将当前节点挂载至父级节点上
+  fiber.parent.dom.append(fiber.dom);
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
 }
 
 function performWorkOfUnit(fiber) {
   if (!fiber.dom) {
     // 1. 创建dom
     const dom = (fiber.dom = createDom(fiber.type));
-    // 将当前节点挂载至父级节点上
-    fiber.parent.dom.append(dom);
 
     // 2. 处理props
     // 处理props中非children属性
