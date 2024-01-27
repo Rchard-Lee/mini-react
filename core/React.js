@@ -14,9 +14,11 @@ function createElement(type, props, ...children) {
     props: {
       ...props,
       // 处理children中有字符串的情况
-      children: children.map((child) =>
-        typeof child === "string" ? createTextNode(child) : child
-      ),
+      children: children.map((child) => {
+        const isTextNode =
+          typeof child === "string" || typeof child === "number";
+        return isTextNode ? createTextNode(child) : child;
+      }),
     },
   };
 }
@@ -35,9 +37,7 @@ function updateProps(dom, props) {
   });
 }
 
-function initChildren(fiber) {
-  const children = fiber.props.children;
-
+function initChildren(fiber, children) {
   // 记录上一个孩子节点
   let prevChild = null;
   children.forEach((child, index) => {
@@ -101,13 +101,28 @@ function commitRoot() {
 
 function commitWork(fiber) {
   if (!fiber) return;
-  // 将当前节点挂载至父级节点上
-  fiber.parent.dom.append(fiber.dom);
+
+  let fiberParent = fiber.parent;
+  // 函数组件上面是没有dom的，所以需要去取更上一级以上的dom挂载
+  while (!fiberParent.dom) {
+    fiberParent = fiberParent.parent;
+  }
+  // 将当前节点挂载至父级节点上，函数组件不挂载(不存在dom)
+  fiber.dom && fiberParent.dom.append(fiber.dom);
   commitWork(fiber.child);
   commitWork(fiber.sibling);
 }
 
-function performWorkOfUnit(fiber) {
+// 处理函数组件
+function updateFunctionComponent(fiber) {
+  // 函数组件不需要创建dom
+  // 对函数组件的返回值用数组包裹一层
+  const children = [fiber.type(fiber.props)];
+  initChildren(fiber, children);
+}
+
+// 处理正常组件
+function updateHostComponent(fiber) {
   if (!fiber.dom) {
     // 1. 创建dom
     const dom = (fiber.dom = createDom(fiber.type));
@@ -117,20 +132,32 @@ function performWorkOfUnit(fiber) {
     updateProps(dom, fiber.props);
   }
 
+  const children = fiber.props.children;
   // 3. 转换链表，建立指针关系
-  initChildren(fiber);
+  initChildren(fiber, children);
+}
+
+function performWorkOfUnit(fiber) {
+  const isFunctionComponent = typeof fiber.type === "function";
+  
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
+  }
 
   // 4. 返回下一个要执行的任务
   // 先看当前节点有没有孩子节点
   if (fiber.child) {
     return fiber.child;
   }
-  // 再看当前节点有没有兄弟节点
-  if (fiber.sibling) {
-    return fiber.sibling;
+  let nextFiber = fiber;
+  while (nextFiber) {
+    // 看当前节点有没有兄弟节点
+    if (nextFiber.sibling) return nextFiber.sibling;
+    // 没有递归找父级的兄弟节点
+    nextFiber = nextFiber.parent;
   }
-  // 返回叔叔节点（父级的兄弟节点）
-  return fiber.parent?.sibling;
 }
 
 requestIdleCallback(workLoop);
