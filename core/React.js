@@ -32,7 +32,12 @@ function createDom(type) {
 function updateProps(dom, props) {
   Object.keys(props).forEach((key) => {
     if (key !== "children") {
-      dom[key] = props[key];
+      if (key.startsWith("on")) {
+        const eventType = key.slice(2).toLowerCase;
+        dom.addEventListener(eventType, props[key]);
+      } else {
+        dom[key] = props[key];
+      }
     }
   });
 }
@@ -139,7 +144,7 @@ function updateHostComponent(fiber) {
 
 function performWorkOfUnit(fiber) {
   const isFunctionComponent = typeof fiber.type === "function";
-  
+
   if (isFunctionComponent) {
     updateFunctionComponent(fiber);
   } else {

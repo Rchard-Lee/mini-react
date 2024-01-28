@@ -5,8 +5,16 @@ import React from "./core/React.js";
 // jsx是React搞出来的，jsx经过babel编译后，变成React.createElement()
 // React.createElement在这里就走core包里面的函数逻辑了
 
-const AppFC = ({num}) => {
-  return <div>Function {num}</div>;
+const AppFC = ({ num }) => {
+  function onClick() {
+    console.log("click");
+  }
+  return (
+    <div>
+      Function {num}
+      <button onClick={onClick}>click</button>
+    </div>
+  );
 };
 
 // console.log(AppFC);
