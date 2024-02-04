@@ -22,18 +22,67 @@ const AppFC = ({ num }) => {
   );
 };
 
-// console.log(AppFC);
+let showBar1 = false;
+const UpdateContainer1 = () => {
+  const Foo = () => <div>foo</div>;
+  const bar = <p>bar</p>;
+
+  function handleShowBar() {
+    showBar1 = !showBar1;
+    React.update();
+  }
+
+  return (
+    <div>
+      Update1
+      <div>{showBar1 ? bar : <Foo></Foo>}</div>
+      <button onClick={handleShowBar}>show bar1</button>
+    </div>
+  );
+};
+
+let showBar2 = false;
+const UpdateContainer2 = () => {
+  const foo = (
+    <div>
+      foo
+      <div>child</div>
+    </div>
+  );
+  const bar = <div>bar</div>;
+
+  function handleShowBar() {
+    showBar2 = !showBar2;
+    React.update();
+  }
+
+  return (
+    <div>
+      Update2
+      <div>{showBar2 ? bar : foo}</div>
+      <button onClick={handleShowBar}>show bar2</button>
+    </div>
+  );
+};
+
+// console.log(AppFC.toString());
 // 输出:
-// () => {
-//  return /* @__PURE__ */ React.createElement("div", null, "hello React");
+// ({ num }) => {
+//   function handleClick() {
+//     console.log("click");
+//     count++;
+//     props.id = count;
+//     React.update();
+//   }
+//   return /* @__PURE__ */ React.createElement("div", { ...props }, "num: ", num, "count: ", count, /* @__PURE__ */ React.createElement("button", { onClick: handleClick }, "click"));
 // }
 
 function App() {
   return (
     <div>
-      hello React
-      <AppFC num={10}></AppFC>
-      <AppFC num={20}></AppFC>
+      hello React 更新props:<AppFC num={10}></AppFC>
+      更新:新的dom和老dom不一致:<UpdateContainer1></UpdateContainer1>
+      更新:新的dom比老的短:<UpdateContainer2></UpdateContainer2>
     </div>
   );
 }

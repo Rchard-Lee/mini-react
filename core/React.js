@@ -1,3 +1,6 @@
+// #region 虚拟dom
+
+// 创建文本类型虚拟dom节点
 function createTextNode(text) {
   return {
     type: "TEXT_ELEMENT",
@@ -8,6 +11,7 @@ function createTextNode(text) {
   };
 }
 
+// 创建其他类型虚拟dom节点
 function createElement(type, props, ...children) {
   return {
     type,
@@ -23,12 +27,18 @@ function createElement(type, props, ...children) {
   };
 }
 
+// 创建虚拟dom节点
 function createDom(type) {
   return type === "TEXT_ELEMENT"
     ? document.createTextNode(type)
     : document.createElement(type);
 }
 
+// #endregion
+
+// #region 更新Props
+
+// 更新Props
 function updateProps(dom, nextProps, prevProps) {
   // 分三种情况处理：
   // 1. 老的有新的没有 删除
@@ -44,6 +54,7 @@ function updateProps(dom, nextProps, prevProps) {
   Object.keys(nextProps).forEach((key) => {
     if (key !== "children") {
       if (nextProps[key] !== prevProps[key]) {
+        // 如果是事件类型
         if (key.startsWith("on")) {
           const eventType = key.slice(2).toLowerCase();
           dom.removeEventListener(eventType, prevProps[key]);
@@ -56,16 +67,23 @@ function updateProps(dom, nextProps, prevProps) {
   });
 }
 
+// #endregion
+
+// #region 构建fiber链式关系
+
+// 协调孩子形成fiber结构（构建链式关系）
 function reconcileChildren(fiber, children) {
+  // 原来的fiber结构
   let oldFiber = fiber.alternate?.child;
   // 记录上一个孩子节点
   let prevChild = null;
+  // 广度优先遍历孩子
   children.forEach((child, index) => {
+    // 判断类型是否一致
     const isSameType = oldFiber && oldFiber.type === child.type;
-
     let newFiber = null;
     if (isSameType) {
-      // update
+      // 如果类型一致则更新
       newFiber = {
         type: child.type,
         props: child.props,
@@ -87,81 +105,25 @@ function reconcileChildren(fiber, children) {
         dom: null,
         effectTag: "placement",
       };
+      // 如果旧fiber存在，就把它放入删除数组中
+      oldFiber && deletions.push(oldFiber);
     }
 
-    // 如果不止一个孩子节点
+    // 指向旧fiber的兄弟节点（与新fiber一样，广度优先遍历，保持同步）
     if (oldFiber) {
       oldFiber = oldFiber.sibling;
     }
 
+    // 构建链式关系
     if (index === 0) {
       fiber.child = newFiber;
     } else {
       prevChild.sibling = newFiber;
     }
+
+    // 把当前节点作为上一个节点
     prevChild = newFiber;
   });
-}
-
-// work in progress 正在工作中的节点
-let wipRoot = null;
-// 对根节点任务的一个缓存(更新的时候使用)
-let currentRoot = null;
-// 将要执行的任务
-let nextWorkOfUnit = null;
-
-function render(el, container) {
-  wipRoot = {
-    dom: container,
-    props: {
-      children: [el],
-    },
-  };
-
-  nextWorkOfUnit = wipRoot;
-}
-
-// 实现任务调度器
-function workLoop(deadline) {
-  let shouldYield = false;
-  while (!shouldYield && nextWorkOfUnit) {
-    nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit);
-
-    shouldYield = deadline.timeRemaining() < 1;
-  }
-
-  // 如果下一个任务已经不存在了，说明已经执行完毕，可以批量渲染 且 只渲染一次（渲染完成之后root为null了）
-  if (!nextWorkOfUnit && wipRoot) {
-    commitRoot();
-  }
-
-  // 不会继续上一次，而是新开一个
-  requestIdleCallback(workLoop);
-}
-
-function commitRoot() {
-  commitWork(wipRoot.child);
-  currentRoot = wipRoot;
-  wipRoot = null;
-}
-
-function commitWork(fiber) {
-  if (!fiber) return;
-
-  let fiberParent = fiber.parent;
-  // 函数组件上面是没有dom的，所以需要去取更上一级以上的dom挂载
-  while (!fiberParent.dom) {
-    fiberParent = fiberParent.parent;
-  }
-
-  if (fiber.effectTag === "update") {
-    updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
-  } else if (fiber.effectTag === "placement") {
-    // 将当前节点挂载至父级节点上，函数组件不挂载(不存在dom)
-    fiber.dom && fiberParent.dom.append(fiber.dom);
-  }
-  commitWork(fiber.child);
-  commitWork(fiber.sibling);
 }
 
 // 处理函数组件
@@ -178,7 +140,7 @@ function updateHostComponent(fiber) {
     // 1. 创建dom
     const dom = (fiber.dom = createDom(fiber.type));
 
-    // 2. 处理props
+    // 2. 处理props(这里其实就是对dom的属性进行赋值)
     // 处理props中非children属性
     updateProps(dom, fiber.props, {});
   }
@@ -188,7 +150,68 @@ function updateHostComponent(fiber) {
   reconcileChildren(fiber, children);
 }
 
+// #endregion
+
+// #region 批量渲染
+
+function commitRoot() {
+  deletions.forEach(commitDeletion);
+  commitWork(wipRoot.child);
+  currentRoot = wipRoot;
+  wipRoot = null;
+  deletions = [];
+}
+
+// 删除不需要再渲染的fiber
+function commitDeletion(fiber) {
+  if (fiber.dom) {
+    let fiberParent = fiber.parent;
+    while (!fiberParent.dom) {
+      fiberParent = fiberParent.parent;
+    }
+    fiberParent.dom.removeChild(fiber.dom);
+  } else {
+    commitDeletion(fiber.child);
+  }
+}
+
+// 构建dom树
+function commitWork(fiber) {
+  if (!fiber) return;
+  let fiberParent = fiber.parent;
+  // 函数组件上面是没有dom的，所以需要去取更上一级以上的dom挂载
+  while (!fiberParent.dom) {
+    fiberParent = fiberParent.parent;
+  }
+
+  if (fiber.effectTag === "update") {
+    updateProps(fiber.dom, fiber.props, fiber.alternate?.props);
+  } else if (fiber.effectTag === "placement") {
+    // 将当前节点挂载至父级节点上，函数组件不挂载(不存在dom)
+    fiber.dom && fiberParent.dom.append(fiber.dom);
+  }
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
+}
+
+// #endregion
+
+// #region 全局变量
+
+// work in progress 正在工作中的节点（构建dom渲染的时候使用）
+let wipRoot = null;
+// 对根节点任务的一个缓存(更新的时候使用)
+let currentRoot = null;
+// 将要执行的任务（调度任务的时候使用）
+let nextWorkOfUnit = null;
+// 将要删除的节点放入一个数组存储
+let deletions = [];
+
+// #endregion
+
+// 处理每一个任务
 function performWorkOfUnit(fiber) {
+  // 判断是否是函数组件
   const isFunctionComponent = typeof fiber.type === "function";
 
   if (isFunctionComponent) {
@@ -211,8 +234,42 @@ function performWorkOfUnit(fiber) {
   }
 }
 
+// 实现任务调度器
+function workLoop(deadline) {
+  let shouldYield = false;
+  while (!shouldYield && nextWorkOfUnit) {
+    nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit);
+
+    shouldYield = deadline.timeRemaining() < 1;
+  }
+
+  // 如果下一个任务已经不存在了，说明已经执行完毕，可以批量渲染 且 只渲染一次（渲染完成之后root为null了）
+  if (!nextWorkOfUnit && wipRoot) {
+    commitRoot();
+  }
+
+  // 不会继续上一次，而是新开一个
+  requestIdleCallback(workLoop);
+}
+
+// 通过requestIdleCallback利用浏览器空余时间调度任务
 requestIdleCallback(workLoop);
 
+// #region 提供初次渲染及更新
+
+// 处理初次渲染
+function render(el, container) {
+  wipRoot = {
+    dom: container,
+    props: {
+      children: [el],
+    },
+  };
+
+  nextWorkOfUnit = wipRoot;
+}
+
+// 处理更新
 function update() {
   wipRoot = {
     dom: currentRoot.dom,
@@ -223,6 +280,8 @@ function update() {
 
   nextWorkOfUnit = wipRoot;
 }
+
+// #endregion
 
 const React = {
   render,
