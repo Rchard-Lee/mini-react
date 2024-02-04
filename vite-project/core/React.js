@@ -139,9 +139,11 @@ function reconcileChildren(fiber, children) {
 
 // 处理函数组件
 function updateFunctionComponent(fiber) {
+  wipFiber = fiber;
   // 函数组件不需要创建dom
   // 对函数组件的返回值用数组包裹一层
   const children = [fiber.type(fiber.props)];
+
   reconcileChildren(fiber, children);
 }
 
@@ -217,6 +219,8 @@ let currentRoot = null;
 let nextWorkOfUnit = null;
 // 将要删除的节点放入一个数组存储
 let deletions = [];
+// 当前正在处理的fiber
+let wipFiber = null;
 
 // #endregion
 
@@ -251,6 +255,12 @@ function workLoop(deadline) {
   while (!shouldYield && nextWorkOfUnit) {
     nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit);
 
+    // 如果当前组件兄弟是下一个要渲染的组件
+    if(wipRoot?.sibling?.type === nextWorkOfUnit?.type) {
+      // 跳出循环不在更新，处理兄弟节点的时候作为结束
+      nextWorkOfUnit = undefined;
+    }
+
     shouldYield = deadline.timeRemaining() < 1;
   }
 
@@ -282,14 +292,18 @@ function render(el, container) {
 
 // 处理更新
 function update() {
-  wipRoot = {
-    dom: currentRoot.dom,
-    props: currentRoot.props,
-    // 指向老节点
-    alternate: currentRoot,
-  };
+  // 利用闭包缓存每次更新时的函数组件
+  let currentFiber = wipFiber;
 
-  nextWorkOfUnit = wipRoot;
+  return () => {
+    wipRoot = {
+      ...currentFiber,
+      // 指向老节点
+      alternate: currentFiber,
+    };
+
+    nextWorkOfUnit = wipRoot;
+  };
 }
 
 // #endregion

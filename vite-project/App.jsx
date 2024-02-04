@@ -7,11 +7,12 @@ import React from "./core/React.js";
 let count = 10;
 let props = { id: count };
 const AppFC = ({ num }) => {
+  const update = React.update();
   function handleClick() {
     console.log("click");
     count++;
     props.id = count;
-    React.update();
+    update();
   }
   return (
     <div {...props}>
@@ -27,9 +28,10 @@ const UpdateContainer1 = () => {
   const Foo = () => <div>foo</div>;
   const bar = <p>bar</p>;
 
+  const update = React.update();
   function handleShowBar() {
     showBar1 = !showBar1;
-    React.update();
+    update();
   }
 
   return (
@@ -52,9 +54,10 @@ const UpdateContainer2 = () => {
   );
   const bar = <div>bar</div>;
 
+  const update = React.update();
   function handleShowBar() {
     showBar2 = !showBar2;
-    React.update();
+    update();
   }
 
   return (
