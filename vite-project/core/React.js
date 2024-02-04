@@ -95,16 +95,19 @@ function reconcileChildren(fiber, children) {
         alternate: oldFiber,
       };
     } else {
-      // 这里的child其实是vdom，如果直接把parent、child、sibling等属性挂载到其身上，会破坏其原有结构，所以使用新对象去记录这种链式结构
-      newFiber = {
-        type: child.type,
-        props: child.props,
-        child: null,
-        parent: fiber,
-        sibling: null,
-        dom: null,
-        effectTag: "placement",
-      };
+      // 处理{isTrue && <comp></comp>}这种写法，此时若isTrue为false，会直接渲染false从而导致出错
+      if (child) {
+        // 这里的child其实是vdom，如果直接把parent、child、sibling等属性挂载到其身上，会破坏其原有结构，所以使用新对象去记录这种链式结构
+        newFiber = {
+          type: child.type,
+          props: child.props,
+          child: null,
+          parent: fiber,
+          sibling: null,
+          dom: null,
+          effectTag: "placement",
+        };
+      }
       // 如果旧fiber存在，就把它放入删除数组中
       oldFiber && deletions.push(oldFiber);
     }
@@ -121,8 +124,10 @@ function reconcileChildren(fiber, children) {
       prevChild.sibling = newFiber;
     }
 
-    // 把当前节点作为上一个节点
-    prevChild = newFiber;
+    if (newFiber) {
+      // 把当前节点作为上一个节点
+      prevChild = newFiber;
+    }
   });
 
   // 如果孩子节点遍历完了，oldFiber还有值，说明oldFiber有多余兄弟节点，需要继续删除

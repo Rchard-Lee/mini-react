@@ -35,7 +35,7 @@ const UpdateContainer1 = () => {
   return (
     <div>
       Update1
-      <div>{showBar1 ? bar : <Foo></Foo>}</div>
+      {showBar1 && <Foo></Foo>}
       <button onClick={handleShowBar}>show bar1</button>
     </div>
   );
@@ -60,7 +60,7 @@ const UpdateContainer2 = () => {
   return (
     <div>
       Update2
-      <div>{showBar2 ? bar : foo}</div>
+      {showBar2 ? bar : foo}
       <button onClick={handleShowBar}>show bar2</button>
     </div>
   );
