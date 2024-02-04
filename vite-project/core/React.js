@@ -124,6 +124,12 @@ function reconcileChildren(fiber, children) {
     // 把当前节点作为上一个节点
     prevChild = newFiber;
   });
+
+  // 如果孩子节点遍历完了，oldFiber还有值，说明oldFiber有多余兄弟节点，需要继续删除
+  while (oldFiber) {
+    deletions.push(oldFiber);
+    oldFiber = oldFiber.sibling;
+  }
 }
 
 // 处理函数组件

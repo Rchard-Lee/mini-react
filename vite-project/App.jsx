@@ -46,7 +46,8 @@ const UpdateContainer2 = () => {
   const foo = (
     <div>
       foo
-      <div>child</div>
+      <div>child1</div>
+      <div>child2</div>
     </div>
   );
   const bar = <div>bar</div>;
